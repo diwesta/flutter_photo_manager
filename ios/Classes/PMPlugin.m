@@ -9,6 +9,7 @@
 #import "PMProgressHandler.h"
 #import "PMConverter.h"
 #import "PMPathFilterOption.h"
+#import "PMResourceUtils.h"
 
 #import <PhotosUI/PhotosUI.h>
 
@@ -666,6 +667,22 @@
         PMThumbLoadOption *option = [PMThumbLoadOption optionDict:call.arguments[@"option"]];
         [manager requestCacheAssetsThumb:ids option:option];
         [handler reply:@YES];
+    } else if ([@"getFileSize" isEqualToString:call.method]) {
+        NSString *id = call.arguments[@"id"];
+        PMAssetEntity *assetEntity = [manager getAssetEntity:id withCache:YES];
+        PMResourceUtils *utils = [PMResourceUtils new];
+        NSNumber *fileSize = [utils getFileSize:assetEntity.phAsset];
+        [handler reply:fileSize];
+    } else if ([@"getFileSizes" isEqualToString:call.method]) {
+        NSArray *ids = call.arguments[@"ids"];
+        PMResourceUtils *utils = [PMResourceUtils new];
+        NSMutableArray *fileSizes = [NSMutableArray arrayWithCapacity:ids.count];
+        for (NSString *id in ids) {
+            PMAssetEntity *assetEntity = [manager getAssetEntity:id withCache:YES];
+            NSNumber *fileSize = [utils getFileSize:assetEntity.phAsset];
+            [fileSizes addObject:fileSize ? fileSize : @0];
+        }
+        [handler reply:fileSizes];
     } else if ([@"cancelCacheRequests" isEqualToString:call.method]) {
         [manager cancelCacheRequests];
         [handler reply:@YES];

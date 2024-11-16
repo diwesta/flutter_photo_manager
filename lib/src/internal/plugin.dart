@@ -121,7 +121,7 @@ class VerboseLogMethodChannel extends MethodChannel {
 }
 
 /// The plugin class is the core class that call channel's methods.
-class PhotoManagerPlugin with BasePlugin, IosPlugin, AndroidPlugin, OhosPlugin {
+class PhotoManagerPlugin with BasePlugin, IosPlugin, AndroidPlugin, OhosPlugin, DWSPlugin {
   void setVerbose(bool isVerbose, String logPath) {
     if (isVerbose) {
       _channel = VerboseLogMethodChannel(
@@ -854,15 +854,23 @@ mixin OhosPlugin on BasePlugin {
 }
 
 void _throwIfOrientationInvalid(int? value) {
-  if (value == null ||
-      value == 0 ||
-      value == 90 ||
-      value == 180 ||
-      value == 270) {
+  if (value == null || value == 0 || value == 90 || value == 180 || value == 270) {
     return;
   }
   throw ArgumentError(
     'The given orientation is invalid, '
     'allowed values are 0, 90, 180, 270, and null.',
   );
+}
+
+mixin DWSPlugin on BasePlugin {
+  Future<int> getFileSize(AssetEntity assetEntity) async {
+    final result = await _channel.invokeMethod('getFileSize', {'id': assetEntity.id});
+    return result as int;
+  }
+
+  Future<List<int>> getFileSizes(List<String> ids) async {
+    final result = await _channel.invokeMethod('getFileSizes', {'ids': ids});
+    return List<int>.from(result);
+  }
 }
