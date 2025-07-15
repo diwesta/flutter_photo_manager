@@ -48,6 +48,10 @@ typedef void (^AssetBlockResult)(PMAssetEntity *, NSObject *);
 
 - (void)getThumbWithId:(NSString *)assetId option:(PMThumbLoadOption *)option resultHandler:(NSObject <PMResultHandler> *)handler progressHandler:(NSObject <PMProgressHandlerProtocol> *)progressHandler;
 
+- (void)getThumbnailWithId:(PMAssetEntity *)entity
+                    option:(PMThumbLoadOption *)option
+             resultHandler:(void (^)(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error))handler;
+
 - (void)getFullSizeFileWithId:(NSString *)assetId
                      isOrigin:(BOOL)isOrigin
                       subtype:(int)subtype

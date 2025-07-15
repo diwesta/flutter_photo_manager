@@ -434,6 +434,58 @@
     }
 }
 
+- (void)getThumbnailWithId:(PMAssetEntity *)entity
+                   option:(PMThumbLoadOption *)option
+            resultHandler:(void (^)(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error))handler {
+    if (!entity.phAsset) {
+        handler(nil, nil, [NSError errorWithDomain:@"PMErrorDomain" code:404 userInfo:@{NSLocalizedDescriptionKey:@"Asset not found"}]);
+        return;
+    }
+    PHAsset *asset = entity.phAsset;
+    PHImageRequestOptions *requestOptions = [PHImageRequestOptions new];
+    requestOptions.deliveryMode = option.deliveryMode;
+    requestOptions.resizeMode = option.resizeMode;
+    requestOptions.networkAccessAllowed = YES;
+    
+    CGSize size = CGSizeMake(option.width, option.height);
+    [self.cachingManager requestImageForAsset:asset
+                                   targetSize:size
+                                  contentMode:option.contentMode
+                                      options:requestOptions
+                                resultHandler:^(UIImage *result, NSDictionary *info) {
+        NSError *error = info[PHImageErrorKey];
+        if (error) {
+            handler(nil, nil, error);
+            return;
+        }
+        if (![PMManager isDownloadFinish:info]) {
+            handler(nil, nil, [NSError errorWithDomain:@"PMErrorDomain" code:1001 userInfo:@{NSLocalizedDescriptionKey:@"Download not finished"}]);
+            return;
+        }
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            NSData *imageData = [PMImageUtil convertToData:result
+                                                formatType:option.format
+                                                   quality:option.quality];
+            if (imageData) {
+                // Call your handler back on whatever queue you prefer (main, if updating UI)
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    handler(result, imageData, nil);
+                });
+            } else {
+                NSString *msg = [NSString stringWithFormat:
+                                 @"Failed to convert %@ to format %u",
+                                 asset.localIdentifier, option.format];
+                NSError *convertError = [NSError errorWithDomain:@"PMErrorDomain"
+                                                            code:1002
+                                                        userInfo:@{NSLocalizedDescriptionKey:msg}];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    handler(nil, nil, convertError);
+                });
+            }
+        });
+    }];
+}
+
 - (void)fetchThumb:(PHAsset *)asset option:(PMThumbLoadOption *)option resultHandler:(NSObject <PMResultHandler> *)handler progressHandler:(NSObject <PMProgressHandlerProtocol> *)progressHandler {
     PHImageRequestOptions *requestOptions = [PHImageRequestOptions new];
     requestOptions.deliveryMode = option.deliveryMode;
@@ -486,9 +538,7 @@
             [handler replyError:[NSString stringWithFormat:@"Failed to convert %@ to %u format.", asset.localIdentifier, option.format]];
             [self notifyProgress:progressHandler progress:lastProgress state:PMProgressStateFailed];
         }
-        
     }];
-    
 }
 
 - (void)getFullSizeFileWithId:(NSString *)assetId
